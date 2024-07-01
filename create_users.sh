@@ -40,10 +40,16 @@ fi
 
 # Secure password file
 log_message "Securing $password_file"
-chmod 600 $password_file
-echo "User,password" > $password_file
+if [ ! -f $password_file ]; then
+	echo "User,password" >> $password_file
+	chmod 600 $password_file
+fi	
 
 shell="/bin/bash"
+echo "--------------------"
+echo "=> Reading $employee_file..."
+echo "--------------------"
+echo ""
 log_message "Reading $employee_file"
 
 while IFS=';' read -r user groups; do
@@ -58,7 +64,7 @@ while IFS=';' read -r user groups; do
         continue
     fi
     
-    echo "Processing user: $user"
+    echo "=> Processing user: $user"
     log_message "Processing user: $user"
     IFS=',' read -r -a group_array <<< "$groups"
 
@@ -66,55 +72,51 @@ while IFS=';' read -r user groups; do
         group_array[$i]=$(echo "${group_array[$i]}" | xargs)
     done
     
-    echo "Groups for $user: ${group_array[*]}"
+    echo "=> Groups for $user: ${group_array[*]}"
     log_message "Groups for $user: ${group_array[*]}"
     
-    # Creating user and assigning a randomly generated password
-    echo "Creating user: $user..."
+    # Create group with the same name as the user
+    if getent group "$user" &>/dev/null; then
+        echo "Group $user already exists."
+        log_message "Group $user already exists."
+    else
+        if groupadd "$user"; then
+            echo "=> Group $user created."
+            log_message "Group $user created."
+        else
+            echo "Error creating group $user."
+            log_message "Error creating group $user."
+            continue
+        fi
+    fi
+    
+    # Creating user, user's home directory and assigning a randomly generated password
+    echo "=> Creating user: $user..."
     log_message "Creating user: $user"
     if id "$user" &>/dev/null; then
         echo "User $user already exists."
         log_message "User $user already exists."
     else
-        if ! useradd -m -s "$shell" "$user"; then
+        if useradd -m -s "$shell" -g "$user" "$user"; then
+            echo "=> User $user created with home directory /home/$user."
+            log_message "User $user created with home directory /home/$user."
+            
+            password=$(head /dev/urandom | tr -dc A-Za-z0-9 | fold -w 16 | head -n 1)
+            if echo "$user:$password" | chpasswd; then
+                echo "$user,$password" >> $password_file
+                echo "=> Password set for $user"
+                log_message "Password set for $user"
+            else
+                echo "Error setting password for $user."
+                log_message "Error setting password for $user."
+                continue
+            fi
+        else
             echo "Error creating user $user."
             log_message "Error creating user $user."
             continue
         fi
-        echo "User $user created."
-        log_message "User $user created."
-        
-        password=$(head /dev/urandom | tr -dc A-Za-z0-9 | fold -w 16 | head -n 1)
-        if ! echo "$user:$password" | chpasswd; then
-            echo "Error setting password for $user."
-            log_message "Error setting password for $user."
-            continue
-        fi
-        echo "$user,$password" >> $password_file
-        echo "Password set for $user"
-        log_message "Password set for $user"
     fi
-    
-    # Create group with the same name as the user and add the user to it
-    if getent group "$user" &>/dev/null; then
-        echo "Group $user already exists."
-        log_message "Group $user already exists."
-    else
-        if ! groupadd "$user"; then
-            echo "Error creating group $user."
-            log_message "Error creating group $user."
-            continue
-        fi
-        echo "Group $user created."
-        log_message "Group $user created."
-    fi
-    if ! usermod -aG "$user" "$user"; then
-        echo "Error adding $user to group $user."
-        log_message "Error adding $user to group $user."
-        continue
-    fi
-    echo "Added $user to group $user."
-    log_message "Added $user to group $user."
 
     # Add the user to other specified groups
     for group in "${group_array[@]}"; do
@@ -122,38 +124,26 @@ while IFS=';' read -r user groups; do
             echo "Group $group already exists."
             log_message "Group $group already exists."
         else
-            if ! groupadd "$group"; then
+            if groupadd "$group"; then
+                echo "Group $group created."
+                log_message "Group $group created."
+            else
                 echo "Error creating group $group."
                 log_message "Error creating group $group."
                 continue
             fi
-            echo "Group $group created."
-            log_message "Group $group created."
         fi
-        if ! usermod -aG "$group" "$user"; then
+        if usermod -aG "$group" "$user"; then
+            echo "=> Added $user to group $group."
+            log_message "Added $user to group $group."
+        else
             echo "Error adding $user to group $group."
             log_message "Error adding $user to group $group."
             continue
         fi
-        echo "Added $user to group $group."
-        log_message "Added $user to group $group."
     done
     
-    # Creating home directory for users
-    if [ ! -d "/home/$user" ]; then
-       echo "Creating home directory for $user..."
-       if ! usermod -m -d "/home/$user" "$user"; then
-           echo "Error creating home directory for $user."
-           log_message "Error creating home directory for $user."
-           continue
-       fi
-       echo "Home directory for $user created."
-       log_message "Home directory for $user created."
-    else
-        echo "Home directory for $user already exists."
-        log_message "Home directory for $user already exists."
-    fi
-    
+    echo "--------------------"
 done < "$employee_file"
 
 echo "Operation Successful"
