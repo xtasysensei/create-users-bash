@@ -3,7 +3,7 @@
   <h3 align="center">Because you are too lazy to do it manually</h5>
 </div>
 
-A shell script which creates users and groups from a .txt file,creates passwords and assigns approriate groups to the users.
+A shell script which create users, assign them to groups, and set their passwords automatically.
 
 ## What it does
 - Reads the users and groups supplied in the .txt file
