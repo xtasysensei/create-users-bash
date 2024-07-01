@@ -30,4 +30,4 @@ $ bash create_user.sh <name-of-text-file>
 Works in any GNU/Linux environment
 
 ## Caution
-This script will modify current configuration. Only use after thorough verification. The Author is not liable for any damages caused by this script. 
+This script will modify current System configurations. Only use after thorough verification. The Author is not liable for any damages caused by this script. 
