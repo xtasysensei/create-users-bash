@@ -7,9 +7,12 @@ if [[ "$EUID" -ne 0 ]]; then
 fi
 
 # Create necessary directories if they don't exist
-if [ ! -d /var/log ] || [ ! -d /var/secure ]; then
-    mkdir -p /var/secure
+if [ ! -d /var/log ]; then
     mkdir -p /var/log
+fi
+
+if [ ! -d /var/secure ]; then
+    mkdir -p /var/secure
 fi
 
 log_file="/var/log/user_management.log"
