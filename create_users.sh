@@ -101,7 +101,7 @@ while IFS=';' read -r user groups; do
             echo "=> User $user created with home directory /home/$user."
             log_message "User $user created with home directory /home/$user."
             
-            password=$(head /dev/urandom | tr -dc A-Za-z0-9 | fold -w 16 | head -n 1)
+            password=$(head /dev/urandom | tr -dc A-Za-z0-9 | fold -w 6 | head -n 1)
             if echo "$user:$password" | chpasswd; then
                 echo "$user,$password" >> $password_file
                 echo "=> Password set for $user"
